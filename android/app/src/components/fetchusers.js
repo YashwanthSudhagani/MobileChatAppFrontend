@@ -14,7 +14,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from "@react-navigation/native";
 import { DarkModeContext } from './DarkMode';
 
-const chatURL = 'https://chat-app-backend-2ph1.onrender.com/api';
+const chatURL = 'https://mobilechatappbackend.onrender.com/api';
 
 const generateAvatar = (username) => {
   if (!username) return { initial: "?", backgroundColor: "#cccccc" };

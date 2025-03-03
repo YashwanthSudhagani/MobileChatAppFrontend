@@ -6,7 +6,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation } from "@react-navigation/native";
 
 // Backend API URL
-const chatURL = "https://chat-app-backend-2ph1.onrender.com/api";
+const chatURL = "https://mobilechatappbackend.onrender.com/api";
 
 const Login = () => {
   const [email, setEmail] = useState("");

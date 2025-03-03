@@ -4,7 +4,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DarkModeContext } from './DarkMode'; // Ensure this path is correct
 
-const chatURL = 'https://chat-app-backend-2ph1.onrender.com/api';
+const chatURL = 'https://mobilechatappbackend.onrender.com/api';
 
 const NotificationsScreen = () => {
   const [notifications, setNotifications] = useState([]);

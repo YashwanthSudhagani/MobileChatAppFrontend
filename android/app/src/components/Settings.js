@@ -3,6 +3,7 @@ import { View, Text, Switch, TouchableOpacity, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { DarkModeContext } from '../components/DarkMode';
+import useLogout from '../components/Logout';
 
 const generateAvatar = async (username) => {
   if (!username) return { initial: "?", backgroundColor: "#cccccc" };
@@ -28,7 +29,8 @@ const Settings = () => {
   const { darkMode, toggleDarkMode } = useContext(DarkModeContext);
   const [avatar, setAvatar] = useState({ initial: "?", backgroundColor: "#cccccc" });
   const [username, setUsername] = useState("");
-
+  const handleLogout = useLogout();
+ 
   useEffect(() => {
     const loadUserData = async () => {
       try {
@@ -94,10 +96,16 @@ const Settings = () => {
           <Text style={[styles.optionText, darkMode && styles.darkText]}>Storage</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.deleteOption}>
+        <TouchableOpacity style={styles.deleteOption} >
           <Ionicons name="trash-outline" size={24} color="red" />
           <Text style={styles.deleteText}>Delete Account</Text>
         </TouchableOpacity>
+
+         {/* Logout Button */}
+      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+        <Ionicons name="log-out-outline" size={24} color={darkMode ? "skyblue" : "blue"} />
+        <Text style={[styles.logoutText,darkMode && styles.darkLogoutText ]}>Logout</Text>
+      </TouchableOpacity>
       </View>
     </View>
   );
@@ -134,6 +142,18 @@ const styles = StyleSheet.create({
 
   deleteOption: { flexDirection: 'row', alignItems: 'center', paddingVertical: 15, marginTop: 20 },
   deleteText: { fontSize: 18, color: 'red', marginLeft: 10 },
+  logoutButton: {
+    position: 'absolute',
+    right: 2,
+    bottom:1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 25,
+  },
+  logoutText: { fontSize: 18, color: 'blue', marginLeft: 10, fontWeight: 'bold' },
+  darkLogoutText:{color:'skyblue'},
 });
 
 export default Settings;

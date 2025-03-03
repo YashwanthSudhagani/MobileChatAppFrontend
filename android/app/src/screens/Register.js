@@ -3,7 +3,7 @@ import { View, TextInput, Button, Text, StyleSheet, Alert } from "react-native";
 // import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Backend URL for registration
-const chatURL = "https://chat-app-backend-2ph1.onrender.com/api";
+const chatURL = "https://mobilechatappbackend.onrender.com/api";
 
 const Registration = ({ navigation }) => {
   const [username, setUsername] = useState("");

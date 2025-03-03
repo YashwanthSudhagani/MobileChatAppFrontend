@@ -12,11 +12,17 @@ import {
 import io from 'socket.io-client';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import AudioRecorderPlayer from 'react-native-audio-recorder-player';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import {DarkModeContext} from './DarkMode';
+import {PermissionsAndroid} from 'react-native';
+import {Platform} from 'react-native';
+import RNFS from 'react-native-fs';
 
-const socket = io('https://chat-app-backend-2ph1.onrender.com');
-const chatURL = 'https://chat-app-backend-2ph1.onrender.com/api';
+const audioRecorderPlayer = new AudioRecorderPlayer();
+
+const socket = io('https://mobilechatappbackend.onrender.com');
+const chatURL = 'https://mobilechatappbackend.onrender.com/api';
 
 const generateAvatar = username => {
   if (!username) return {initial: '?', backgroundColor: '#cccccc'};
@@ -52,6 +58,7 @@ const generateAvatar = username => {
 const Messages = ({route, navigation}) => {
   const {channel} = route.params;
   const [messages, setMessages] = useState([]);
+  const [voiceMessages, setVoiceMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [menuVisible, setMenuVisible] = useState(false);
   const messagesRef = useRef(null);
@@ -59,6 +66,8 @@ const Messages = ({route, navigation}) => {
   const [attachmentVisible, setAttachmentVisible] = useState(false);
   const slideAnim = useRef(new Animated.Value(0)).current;
   const {darkMode} = useContext(DarkModeContext);
+  const [recording, setRecording] = useState(false);
+  const [recordTime, setRecordTime] = useState('0:00');
 
   const avatar = generateAvatar(channel.username);
 
@@ -88,21 +97,44 @@ const Messages = ({route, navigation}) => {
       }
     };
 
+    const fetchVoiceMessages = async () => {
+      try {
+        const response = await axios.get(
+          `${chatURL}/messages/${userId}/${channel._id}`,
+        );
+        setVoiceMessages(response.data);
+      } catch (error) {
+        console.error(
+          'Error fetching voice messages:',
+          error.response?.data || error.message,
+        );
+      }
+    };
+
     fetchMessages();
-    const intervalId = setInterval(fetchMessages, 1000);
+    fetchVoiceMessages();
+    const intervalId = setInterval(() => {
+      fetchMessages();
+      fetchVoiceMessages();
+    }, 1000);
     return () => clearInterval(intervalId);
   }, [userId, channel]);
 
   useEffect(() => {
     socket.emit('join-chat', {userId});
+
     socket.on('msg-receive', ({msg}) => {
-      setMessages(prevMessages => [
-        ...prevMessages,
-        {fromSelf: false, message: msg},
-      ]);
+      setMessages(prev => [...prev, {fromSelf: false, message: msg}]);
     });
 
-    return () => socket.off('msg-receive');
+    socket.on('receive-voice-msg', ({audioUrl}) => {
+      setVoiceMessages(prev => [...prev, {fromSelf: false, audioUrl}]);
+    });
+
+    return () => {
+      socket.off('msg-receive');
+      socket.off('receive-voice-msg');
+    };
   }, [userId]);
 
   const sendMessage = async () => {
@@ -135,6 +167,125 @@ const Messages = ({route, navigation}) => {
     }).start();
   };
 
+  const getAudioPath = () => {
+    return Platform.OS === 'android'
+      ? `${RNFS.ExternalCachesDirectoryPath}/recording_${Date.now()}.mp3`
+      : `${RNFS.DocumentDirectoryPath}/recording_${Date.now()}.mp3`;
+  };
+
+  const requestPermissions = async () => {
+    try {
+      const granted = await PermissionsAndroid.requestMultiple([
+        PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+        PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
+        PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
+      ]);
+
+      return (
+        granted[PermissionsAndroid.PERMISSIONS.RECORD_AUDIO] ===
+          PermissionsAndroid.RESULTS.GRANTED &&
+        granted[PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE] ===
+          PermissionsAndroid.RESULTS.GRANTED &&
+        granted[PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE] ===
+          PermissionsAndroid.RESULTS.GRANTED
+      );
+    } catch (err) {
+      console.warn(err);
+      return false;
+    }
+  };
+
+  const startRecording = async () => {
+    setRecording(true);
+    setRecordTime('0:00');
+
+    try {
+      const path = getAudioPath();
+      const audioUri = await audioRecorderPlayer.startRecorder(path);
+
+      console.log('Recording started at:', audioUri);
+
+      audioRecorderPlayer.addRecordBackListener(e => {
+        let sec = Math.floor(e.currentPosition / 1000);
+        let min = Math.floor(sec / 60);
+        sec = sec % 60;
+        setRecordTime(`${min}:${sec < 10 ? '0' : ''}${sec}`);
+      });
+    } catch (error) {
+      console.error('Error starting recording:', error);
+      setRecording(false);
+    }
+  };
+
+  const stopRecording = async () => {
+    try {
+      const audioPath = await audioRecorderPlayer.stopRecorder();
+      audioRecorderPlayer.removeRecordBackListener(); // Stop listening to timer updates
+      setRecording(false);
+
+      console.log('Recording stopped, file path:', audioPath);
+
+      if (audioPath) {
+        uploadAudio(audioPath);
+      } else {
+        console.error('Audio path is undefined, recording might have failed.');
+      }
+    } catch (error) {
+      console.error('Error stopping recording:', error);
+      setRecording(false);
+    }
+  };
+
+  const uploadAudio = async audioPath => {
+    if (!audioPath) {
+      console.error('No audio file to upload');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', {
+      uri: audioPath,
+      type: 'audio/mp3',
+      name: 'voice_note.mp3',
+    });
+    formData.append('from', userId);
+    formData.append('to', channel._id);
+
+    try {
+      console.log('Uploading audio:', audioPath);
+
+      const response = await axios.post(
+        `${chatURL}/messages/addvoice`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            Accept: 'application/json',
+          },
+        },
+      );
+
+      console.log('Audio uploaded successfully:', response.data);
+
+      socket.emit('send-voice-msg', {
+        to: channel._id,
+        audioUrl: response.data.audioUrl,
+      });
+      setVoiceMessages(prev => [
+        ...prev,
+        {fromSelf: true, audioUrl: response.data.audioUrl},
+      ]);
+    } catch (error) {
+      console.error(
+        'Error uploading audio:',
+        error.response?.data || error.message,
+      );
+    }
+  };
+
+  const playAudio = async url => {
+    await audioRecorderPlayer.startPlayer(url);
+  };
   return (
     <TouchableWithoutFeedback onPress={() => setMenuVisible(false)}>
       <View style={[styles.container, darkMode && styles.darkContainer]}>
@@ -239,22 +390,24 @@ const Messages = ({route, navigation}) => {
 
         {/* Messages List */}
         <FlatList
-          ref={messagesRef}
-          data={messages}
-          keyExtractor={(item, index) => index.toString()}
-          renderItem={({item}) => (
-            <Text
-              style={
-                item.fromSelf ? styles.sentMessage : styles.receivedMessage
-              }>
-              {item.message}
-            </Text>
-          )}
-          onContentSizeChange={() =>
-            messagesRef.current?.scrollToEnd({animated: true})
-          }
-          onLayout={() => messagesRef.current?.scrollToEnd({animated: true})}
-        />
+  ref={messagesRef}
+  data={[...messages, ...voiceMessages]}
+  keyExtractor={(item, index) => index.toString()}
+  renderItem={({ item }) => (
+    <View
+      style={
+        item.fromSelf ? styles.sentMessage : styles.receivedMessage
+      }>
+      {item.message ? (
+        <Text>{item.message}</Text>
+      ) : (
+        <TouchableOpacity onPress={() => playAudio(item.audioUrl)}>
+          <Ionicons name="play" size={24} color="white" />
+        </TouchableOpacity>
+      )}
+    </View>
+  )}
+/>
 
         {/* Attachment Menu (Floating Popup) */}
         {attachmentVisible && (
@@ -327,12 +480,13 @@ const Messages = ({route, navigation}) => {
             numberOfLines={1} // Starts with a single line
             textAlignVertical="top" // Ensures text starts from the top
           />
-
-          <TouchableOpacity style={styles.iconButton}>
+          {recording && <Text>{recordTime}</Text>}
+          <TouchableOpacity
+            onPress={recording ? stopRecording : startRecording}>
             <Ionicons
-              name="mic-outline"
+              name={recording ? 'stop' : 'mic-outline'}
               size={24}
-              color={darkMode ? 'white' : 'grey'}
+              color="grey"
             />
           </TouchableOpacity>
 
@@ -504,6 +658,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     margin: 10 /* Adjusted margin for proper spacing */,
     width: '30%' /* Adjust width for responsiveness */,
+  },
+  audioMessage: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#007AFF',
+    padding: 10,
+    borderRadius: 10,
+    marginVertical: 5,
   },
 });
 

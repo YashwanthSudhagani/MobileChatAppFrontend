@@ -8,9 +8,9 @@ export const DarkModeProvider = ({ children }) => {
 
   useEffect(() => {
     const loadDarkMode = async () => {
-      const savedMode = await AsyncStorage.getItem('darkMode');
-      if (savedMode !== null) {
-        setDarkMode(JSON.parse(savedMode));
+      const storedDarkMode = await AsyncStorage.getItem('darkMode');
+      if (storedDarkMode !== null) {
+        setDarkMode(JSON.parse(storedDarkMode));
       }
     };
     loadDarkMode();

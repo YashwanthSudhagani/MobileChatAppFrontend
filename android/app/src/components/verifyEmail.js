@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, ActivityIndicator, Alert } from "react-native";
 import { useRoute, useNavigation } from "@react-navigation/native";
 
-const chatURL = "https://chat-app-backend-2ph1.onrender.com/api";
+const chatURL = "https://mobilechatappbackend.onrender.com/api";
 
 const VerifyEmail = () => {
   const { token } = useRoute().params; // Getting token from URL params

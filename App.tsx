@@ -7,6 +7,8 @@ import HomeScreen from "./android/app/src/screens/HomeScreen";
 import LoginScreen from "./android/app/src/screens/Login";
 import RegistrationScreen from "./android/app/src/screens/Register";
 import ChatApp from "./android/app/src/screens/ChatApp";
+import 'react-native-gesture-handler';
+
 
 export type RootStackParamList = {
   Home: undefined;
