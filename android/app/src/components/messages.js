@@ -396,13 +396,20 @@ const Messages = ({route, navigation}) => {
   renderItem={({ item }) => (
     <View
       style={
-        item.fromSelf ? styles.sentMessage : styles.receivedMessage
+        item.message
+          ? item.fromSelf
+            ? styles.sentMessage
+            : styles.receivedMessage
+          : item.fromSelf
+          ? styles.sentAudioMessage
+          : styles.receivedAudioMessage
       }>
       {item.message ? (
         <Text>{item.message}</Text>
       ) : (
         <TouchableOpacity onPress={() => playAudio(item.audioUrl)}>
-          <Ionicons name="play" size={24} color="white" />
+          <Ionicons name="play" size={24} style={styles.audioIcon} />
+          <Text style={styles.audioText}>Play</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -659,13 +666,37 @@ const styles = StyleSheet.create({
     margin: 10 /* Adjusted margin for proper spacing */,
     width: '30%' /* Adjust width for responsiveness */,
   },
-  audioMessage: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#007AFF',
+  sentAudioMessage: {
+    alignSelf: 'flex-end', // Moves sent messages to the right
+    backgroundColor: '#007AFF', // Blue bubble for sent audio
     padding: 10,
-    borderRadius: 10,
-    marginVertical: 5,
+    borderRadius: 20,
+    flexDirection: 'row', // Aligns icon and content horizontally
+    alignItems: 'center', // Centers icon vertically
+    margin: 5,
+    maxWidth: '60%', // Prevents the bubble from being too wide
+  },
+
+  /* Received audio messages (align left) */
+  receivedAudioMessage: {
+    alignSelf: 'flex-start', // Moves received messages to the left
+    backgroundColor: '#4B0082', // Dark purple for received audio
+    padding: 10,
+    borderRadius: 20,
+    flexDirection: 'row', // Aligns icon and content horizontally
+    alignItems: 'center', // Centers icon vertically
+    margin: 5,
+    maxWidth: '60%', // Keeps bubble size reasonable
+  },
+
+  /* Common icon styling inside audio messages */
+  audioIcon: {
+    marginRight: 10, // Adds space between icon and content
+    color: 'white', // Ensures good visibility
+  },
+  audioText: {
+    color: 'white',
+    fontWeight: 'bold',
   },
 });
 
